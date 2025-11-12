@@ -10,7 +10,7 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * GUI - Factory Method Pattern Refactored
+ * GUI - Factory Method Pattern with KBACKGROUND support
  * Main menu screen using ButtonFactory and PanelFactory
  */
 public class GUI extends JFrame implements UITheme.ThemeChangeListener {
@@ -23,6 +23,8 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
     private JPanel buttonPanel;
     private JLabel title;
     private JLabel subtitle;
+    private Image backgroundImage;
+    private JPanel mainPanel;
 
     public GUI() {
         setTitle("Main Menu");
@@ -32,25 +34,59 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
         setLayout(new BorderLayout());
 
         UITheme.addThemeChangeListener(this);
-
+        loadBackgroundImage();
         initializeComponents();
         updateTheme();
 
         setVisible(true);
     }
 
+    private void loadBackgroundImage() {
+        try {
+            ImageIcon icon = new ImageIcon(getClass().getResource("/KBACKGROUND.png"));
+            backgroundImage = icon.getImage();
+            System.out.println("Background image loaded successfully");
+        } catch (Exception e) {
+            System.err.println("Error loading background image: " + e.getMessage());
+            backgroundImage = null;
+        }
+    }
+
     private void initializeComponents() {
+        // Main panel with background
+        mainPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                
+                // Fill with PRIMARY_GREEN
+                g2d.setColor(UITheme.PRIMARY_GREEN);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Draw background image if available
+                if (backgroundImage != null) {
+                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, 
+                                        RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+                }
+            }
+        };
+        setContentPane(mainPanel);
+
         // Top panel with dark mode toggle
         JPanel topPanel = panelFactory.createPanel(new BorderLayout());
         topPanel.setOpaque(false);
         
         JPanel darkModePanel = panelFactory.createFlowPanel(FlowLayout.RIGHT, 0, 0);
+        darkModePanel.setOpaque(false);
         darkModePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 0, 10));
         darkModePanel.add(buttonFactory.createThemeToggleButton());
         topPanel.add(darkModePanel, BorderLayout.NORTH);
 
         // Logo panel
         logoPanel = panelFactory.createPanel();
+        logoPanel.setOpaque(false);
         logoPanel.setBorder(BorderFactory.createEmptyBorder(UITheme.PANEL_PADDING_TOP, 0, 20, 0));
         
         JLabel logoLabel = new JLabel();
@@ -66,7 +102,7 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
         logoPanel.add(logoLabel);
         
         topPanel.add(logoPanel, BorderLayout.CENTER);
-        add(topPanel, BorderLayout.NORTH);
+        mainPanel.add(topPanel, BorderLayout.NORTH);
 
         // Middle content panel
         contentPanel = panelFactory.createPanel();
@@ -80,7 +116,7 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
         title.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, UITheme.FONT_LARGE));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        subtitle = new JLabel("Your personal finance tracker and manager", SwingConstants.CENTER);
+        subtitle = new JLabel("Your Personal Finance Tracker and Manager!", SwingConstants.CENTER);
         subtitle.setForeground(UITheme.TEXT_COLOR);
         subtitle.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, UITheme.FONT_MEDIUM));
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -90,7 +126,7 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
         contentPanel.add(subtitle);
         contentPanel.add(Box.createVerticalGlue());
 
-        add(contentPanel, BorderLayout.CENTER);
+        mainPanel.add(contentPanel, BorderLayout.CENTER);
 
         // Bottom button panel
         buttonPanel = panelFactory.createPanel();
@@ -112,7 +148,7 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
             if (i < buttons.length - 1) buttonPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         }
 
-        add(buttonPanel, BorderLayout.SOUTH);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
     }
 
     @Override
@@ -121,10 +157,15 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
     }
 
     private void updateTheme() {
-        getContentPane().setBackground(UITheme.PRIMARY_GREEN);
-        logoPanel.setBackground(UITheme.PRIMARY_GREEN);
-        title.setForeground(UITheme.TEXT_COLOR);
-        subtitle.setForeground(UITheme.TEXT_COLOR);
+        if (mainPanel != null) {
+            mainPanel.repaint();
+        }
+        if (title != null) {
+            title.setForeground(UITheme.TEXT_COLOR);
+        }
+        if (subtitle != null) {
+            subtitle.setForeground(UITheme.TEXT_COLOR);
+        }
         repaint();
     }
 
