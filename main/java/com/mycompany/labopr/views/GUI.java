@@ -27,11 +27,16 @@ public class GUI extends JFrame implements UITheme.ThemeChangeListener {
     private JPanel mainPanel;
 
     public GUI() {
-        setTitle("Main Menu");
+        setTitle("KwarTrack - Landing Page");
         setSize(1300, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
+
+        ImageIcon icon = UITheme.getCachedLogo("/KLOGO.png", 64, 64);
+        if (icon != null) {
+            setIconImage(icon.getImage());
+        }
 
         UITheme.addThemeChangeListener(this);
         loadBackgroundImage();
