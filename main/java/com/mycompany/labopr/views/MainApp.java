@@ -30,20 +30,18 @@ public class MainApp extends JFrame implements UITheme.ThemeChangeListener {
     public MainApp() {
         this.dataFacade = DataFacade.getInstance();
         
-        setTitle("KwarTrack - Main Application");
+        setTitle("KwarTrack - Landing Page");
         setSize(1300, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // FIXED: Set window icon to KwarTrack logo
-        ImageIcon icon = UITheme.getCachedLogo("/KTrack Logo.png", 64, 64);
+        ImageIcon icon = UITheme.getCachedLogo("/KLOGO.png", 64, 64);
         if (icon != null) {
             setIconImage(icon.getImage());
         }
 
         UITheme.addThemeChangeListener(this);
-
         initializeComponents();
         updateTheme();
 
