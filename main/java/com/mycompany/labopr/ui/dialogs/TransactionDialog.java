@@ -7,10 +7,14 @@ import com.mycompany.labopr.ui.factories.PanelFactory;
 import com.mycompany.labopr.ui.theme.UITheme;
 import javax.swing.*;
 import java.awt.*;
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class TransactionDialog {
+    // Maximum value for DECIMAL(15,2): 13 integer digits + 2 decimal digits
+    private static final BigDecimal MAX_AMOUNT = new BigDecimal("9999999999999.99");
+    
     private final JFrame parent;
     private final String transactionType;
     private final ButtonFactory buttonFactory;
@@ -135,30 +139,48 @@ public class TransactionDialog {
     }
     
     private void handleAdd(JDialog dialog) {
+        // Validate amount
         String amountText = amountField.getText().trim();
         if (amountText.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "Please enter an amount.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
-        double amount;
+        BigDecimal amount;
         try {
-            amount = Double.parseDouble(amountText);
-            if (amount <= 0) {
+            amount = new BigDecimal(amountText);
+            
+            // Check if amount is positive
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                 JOptionPane.showMessageDialog(dialog, "Amount must be positive.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+            
+            // VALIDATION: Check if amount exceeds database maximum
+            if (amount.compareTo(MAX_AMOUNT) > 0) {
+                JOptionPane.showMessageDialog(
+                    dialog,
+                    "The amount entered exceeds the maximum allowed value (₱9,999,999,999,999.99) and cannot be saved.\n\n" +
+                    "Please enter a smaller amount.",
+                    "Amount Too Large",
+                    JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+            
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(dialog, "Invalid amount format.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
+        // Validate category
         String category = (String) categoryCombo.getSelectedItem();
         if (category == null || category.equals("➕ Create Category")) {
             JOptionPane.showMessageDialog(dialog, "Please select a category.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         
+        // Validate date
         String date = dateField.getText().trim();
         if (date.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "Please enter a date.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -173,7 +195,7 @@ public class TransactionDialog {
         String comment = commentArea.getText().trim();
         
         TransactionData.Transaction transaction = new TransactionData.Transaction(
-            transactionType, date, category, amount, comment
+            transactionType, date, category, amount.doubleValue(), comment
         );
         TransactionData.saveTransaction(transaction);
         
