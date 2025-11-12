@@ -8,14 +8,17 @@ import com.mycompany.labopr.ui.factories.PanelFactory;
 import com.mycompany.labopr.ui.theme.UITheme;
 import javax.swing.*;
 import java.awt.*;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.List;
 
 /**
- * Refactored BudgetGoalDialog using DialogBuilder, ButtonFactory, and PanelFactory.
- * Fixed: ScrollPane support for "Set All" dialog (preferred size, viewport background).
+ * Refactored BudgetGoalDialog with amount validation against DECIMAL(15,2) maximum
  */
 public class BudgetGoalDialog {
+    // Maximum value for DECIMAL(15,2): 13 integer digits + 2 decimal digits
+    private static final BigDecimal MAX_AMOUNT = new BigDecimal("9999999999999.99");
+    
     private final JFrame parent;
     private final String selectedMonth;
     private final String preselectedCategory;
@@ -115,8 +118,7 @@ public class BudgetGoalDialog {
 
     // --- Set All Dialog ---
     private boolean showSetAllDialog() {
-        // ensure map initialized before building content
-        this.categoryFields = new LinkedHashMap<>(); // preserve order
+        this.categoryFields = new LinkedHashMap<>();
         JLabel monthLabel = new JLabel("Set Goals for Month: " + selectedMonth);
         monthLabel.setForeground(Color.BLACK);
         monthLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, 18));
@@ -146,7 +148,6 @@ public class BudgetGoalDialog {
     }
 
     private JPanel createSetAllContentPanel() {
-        // The categoriesPanel contains rows; we'll place it inside a JScrollPane with preferred size.
         JPanel categoriesPanel = panelFactory.createPanel();
         categoriesPanel.setLayout(new BoxLayout(categoriesPanel, BoxLayout.Y_AXIS));
         categoriesPanel.setOpaque(false);
@@ -191,15 +192,13 @@ public class BudgetGoalDialog {
             categoriesPanel.add(Box.createVerticalStrut(10));
         }
 
-        // Put categoriesPanel into a JScrollPane and ensure viewport background & preferred size.
         JScrollPane scrollPane = new JScrollPane(categoriesPanel);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getViewport().setBackground(UITheme.LIGHTER_PRIMARY_GREEN);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        scrollPane.setPreferredSize(new Dimension(480, 420)); // ensures scroll appears inside dialog
+        scrollPane.setPreferredSize(new Dimension(480, 420));
 
-        // Wrap scrollPane in a border panel to match other dialogs' look
         JPanel wrapperPanel = panelFactory.createBorderPanel();
         wrapperPanel.setBackground(UITheme.LIGHTER_PRIMARY_GREEN);
         wrapperPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
@@ -223,12 +222,27 @@ public class BudgetGoalDialog {
         }
 
         try {
-            double goal = Double.parseDouble(goalText);
-            if (goal < 0) {
+            BigDecimal goal = new BigDecimal(goalText);
+            
+            // Check if amount is non-negative
+            if (goal.compareTo(BigDecimal.ZERO) < 0) {
                 JOptionPane.showMessageDialog(dialog, "Goal must be non-negative.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            BudgetData.saveBudgetGoal(new BudgetData.BudgetGoal(category, selectedMonth, goal));
+            
+            // VALIDATION: Check if amount exceeds database maximum
+            if (goal.compareTo(MAX_AMOUNT) > 0) {
+                JOptionPane.showMessageDialog(
+                    dialog,
+                    "The goal amount entered exceeds the maximum allowed value (₱9,999,999,999,999.99) and cannot be saved.\n\n" +
+                    "Please enter a smaller amount.",
+                    "Amount Too Large",
+                    JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+            
+            BudgetData.saveBudgetGoal(new BudgetData.BudgetGoal(category, selectedMonth, goal.doubleValue()));
             confirmed = true;
             dialog.dispose();
         } catch (NumberFormatException e) {
@@ -238,22 +252,51 @@ public class BudgetGoalDialog {
 
     private void handleSaveAll(JDialog dialog) {
         List<BudgetData.BudgetGoal> goals = new ArrayList<>();
+        List<String> invalidCategories = new ArrayList<>();
 
         for (Map.Entry<String, JTextField> entry : categoryFields.entrySet()) {
             String category = entry.getKey();
             String goalText = entry.getValue().getText().trim();
+            
             if (!goalText.isEmpty()) {
                 try {
-                    double goal = Double.parseDouble(goalText);
-                    if (goal >= 0) {
-                        goals.add(new BudgetData.BudgetGoal(category, selectedMonth, goal));
+                    BigDecimal goal = new BigDecimal(goalText);
+                    
+                    // Check if amount is non-negative
+                    if (goal.compareTo(BigDecimal.ZERO) < 0) {
+                        invalidCategories.add(category + " (negative value)");
+                        continue;
                     }
+                    
+                    // VALIDATION: Check if amount exceeds database maximum
+                    if (goal.compareTo(MAX_AMOUNT) > 0) {
+                        invalidCategories.add(category + " (exceeds ₱9,999,999,999,999.99)");
+                        continue;
+                    }
+                    
+                    goals.add(new BudgetData.BudgetGoal(category, selectedMonth, goal.doubleValue()));
+                    
                 } catch (NumberFormatException e) {
-                    JOptionPane.showMessageDialog(dialog, "Invalid amount for category: " + category,
-                            "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
+                    invalidCategories.add(category + " (invalid format)");
                 }
             }
+        }
+
+        // If there are invalid entries, show error and don't save
+        if (!invalidCategories.isEmpty()) {
+            StringBuilder errorMsg = new StringBuilder("The following categories have invalid amounts:\n\n");
+            for (String cat : invalidCategories) {
+                errorMsg.append("• ").append(cat).append("\n");
+            }
+            errorMsg.append("\nPlease correct these values before saving.");
+            
+            JOptionPane.showMessageDialog(
+                dialog,
+                errorMsg.toString(),
+                "Invalid Amounts",
+                JOptionPane.ERROR_MESSAGE
+            );
+            return;
         }
 
         if (goals.isEmpty()) {
