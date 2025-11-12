@@ -22,7 +22,7 @@ import java.util.*;
 import java.util.List;
 
 /**
- * DashboardPanel - REFACTORED to use Composite Pattern
+ * DashboardPanel - FIXED: No duplicate cards, proper responsive layout
  */
 public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListener, Refreshable {
     
@@ -33,13 +33,14 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     
     private String currentMonth;
     
-    // CHANGED: Now using Composite Pattern components
+    // Overview metrics
     private MetricCardComponent balanceCard;
     private MetricCardComponent incomeCard;
     private MetricCardComponent expensesCard;
     private MetricCardComponent savingsCard;
     private CompositePanel overviewMetricsContainer;
     
+    // Analytics metrics
     private MetricCardComponent monthlyIncomeCard;
     private MetricCardComponent monthlyExpensesCard;
     private MetricCardComponent monthlySavingsCard;
@@ -83,6 +84,7 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     }
     
     private void initComponents() {
+        // FIXED: Main content panel with proper weighting
         JPanel mainContentPanel = panelFactory.createPanel(new GridBagLayout());
         mainContentPanel.setBackground(UITheme.isDarkMode() ? Color.BLACK : UITheme.PRIMARY_GREEN);
         mainContentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -120,8 +122,10 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         gbc.gridy++;
         gbc.weighty = 0.3;
         gbc.fill = GridBagConstraints.BOTH;
+        gbc.insets = new Insets(0, 0, 0, 0); // Remove bottom margin
         mainContentPanel.add(createRecentTransactionsSection(), gbc);
         
+        // FIXED: Proper scroll pane configuration for responsiveness
         mainScrollPane = new JScrollPane(mainContentPanel);
         mainScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         mainScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -175,7 +179,7 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1.0;
         
-        // CHANGED: Create Composite container with metric cards
+        // Create Composite container with metric cards
         overviewMetricsContainer = new CompositePanel(new GridLayout(1, 4, 15, 0));
         overviewMetricsContainer.setBackground(UITheme.isDarkMode() ? Color.BLACK : UITheme.PRIMARY_GREEN);
         overviewMetricsContainer.setOpaque(false);
@@ -251,12 +255,12 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1.0;
         
-        // CHANGED: Create Composite container with metric cards
+        // Create Composite container with metric cards
         analyticsMetricsContainer = new CompositePanel(new GridLayout(1, 4, 15, 0));
         analyticsMetricsContainer.setBackground(UITheme.isDarkMode() ? Color.BLACK : UITheme.PRIMARY_GREEN);
         analyticsMetricsContainer.setOpaque(false);
         
-        // Create metric card components
+        // Create metric card components (FIXED: Create all 4 cards upfront)
         monthlyIncomeCard = new MetricCardComponent("Total Income", 0.0, new Color(0x7ed957), false);
         monthlyExpensesCard = new MetricCardComponent("Total Expenses", 0.0, new Color(0xe57373), false);
         monthlySavingsCard = new MetricCardComponent("Net Savings", 0.0, new Color(0x66bb6a), false);
@@ -395,7 +399,7 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     private void loadDashboardData() {
         DashboardData data = dataFacade.getDashboardData(currentMonth);
         
-        // CHANGED: Update metric cards using setValue()
+        // Update overview metric cards
         balanceCard.setValue(data.currentBalance);
         incomeCard.setValue(data.monthlyIncome);
         expensesCard.setValue(data.monthlyExpenses);
@@ -428,23 +432,11 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     private void loadAnalyticsData() {
         AnalyticsSummary analytics = dataFacade.getAnalyticsSummary(currentMonth);
         
-        // CHANGED: Update metric cards and their colors dynamically
+        // FIXED: Update existing cards instead of recreating them
         monthlyIncomeCard.setValue(analytics.totalIncome);
         monthlyExpensesCard.setValue(analytics.totalExpenses);
-        
-        // Update savings card color based on value
-        Color savingsColor = analytics.netSavings >= 0 ? new Color(0x66bb6a) : new Color(0xef5350);
-        monthlySavingsCard = new MetricCardComponent("Net Savings", analytics.netSavings, savingsColor, false);
-        
-        // Update savings rate card color based on value
-        Color rateColor = analytics.savingsRate >= 0 ? new Color(0x66bb6a) : new Color(0xef5350);
-        savingsRateCard = new MetricCardComponent("Savings Rate", analytics.savingsRate, rateColor, true);
-        
-        // Rebuild the analytics container with updated cards
-        analyticsMetricsContainer.removeChild(monthlySavingsCard);
-        analyticsMetricsContainer.removeChild(savingsRateCard);
-        analyticsMetricsContainer.addChild(monthlySavingsCard);
-        analyticsMetricsContainer.addChild(savingsRateCard);
+        monthlySavingsCard.setValue(analytics.netSavings);
+        savingsRateCard.setValue(analytics.savingsRate);
         
         // Update composite (propagates to all children)
         analyticsMetricsContainer.update();
