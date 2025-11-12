@@ -9,8 +9,7 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * Landing - FIXED: Home, About, Contact buttons always white with black text
- * Features: About and Contact panels with navigation
+ * Landing - Updated with About/Contact panels, dark mode support, and no Home button
  */
 public class Landing extends JFrame implements UITheme.ThemeChangeListener {
 
@@ -33,7 +32,7 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        ImageIcon icon = UITheme.getCachedLogo("/KTrack Logo.png", 64, 64);
+        ImageIcon icon = UITheme.getCachedLogo("/KLOGO.png", 64, 64);
         if (icon != null) {
             setIconImage(icon.getImage());
         }
@@ -58,45 +57,76 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
     }
 
     // ================= ABOUT PANEL (Inner Class) =================
-    class AboutPanel extends JPanel {
+    class AboutPanel extends JPanel implements UITheme.ThemeChangeListener {
         
         private Image aboutBackgroundImage;
+        private JButton themeToggleBtn;
+        private JLabel aboutTitle;
+        private JLabel aboutDesc;
         
         public AboutPanel(Runnable onBack) {
             loadAboutBackgroundImage();
             setLayout(new BorderLayout());
             
+            UITheme.addThemeChangeListener(this);
+            
+            // Top panel with dark mode button
+            JPanel topPanelAbout = panelFactory.createPanel(new BorderLayout());
+            topPanelAbout.setOpaque(false);
+            topPanelAbout.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            
+            JPanel darkModePanel = panelFactory.createFlowPanel(FlowLayout.RIGHT, 0, 0);
+            darkModePanel.setOpaque(false);
+            themeToggleBtn = buttonFactory.createThemeToggleButton();
+            themeToggleBtn.addActionListener(e -> {
+                Window window = SwingUtilities.getWindowAncestor(this);
+                if (window != null) {
+                    window.revalidate();
+                    window.repaint();
+                }
+            });
+            darkModePanel.add(themeToggleBtn);
+            topPanelAbout.add(darkModePanel, BorderLayout.EAST);
+            
+            add(topPanelAbout, BorderLayout.NORTH);
+            
             // Center panel with logo and text
-            JPanel centerPanel = new JPanel();
+            JPanel centerPanel = panelFactory.createPanel();
             centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
             centerPanel.setOpaque(false);
-            centerPanel.setBorder(BorderFactory.createEmptyBorder(50, 0, 0, 0));
+            centerPanel.setBorder(BorderFactory.createEmptyBorder(30, 50, 30, 50));
             
             centerPanel.add(Box.createVerticalGlue());
             
             // Add logo (smaller size)
             try {
                 ImageIcon logoIcon = new ImageIcon(getClass().getResource("/KLOGO.png"));
-                Image scaledImage = logoIcon.getImage().getScaledInstance(150, 150, Image.SCALE_SMOOTH);
+                Image scaledImage = logoIcon.getImage().getScaledInstance(180, 180, Image.SCALE_SMOOTH);
                 JLabel logoLabel = new JLabel(new ImageIcon(scaledImage));
                 logoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
                 centerPanel.add(logoLabel);
-                centerPanel.add(Box.createRigidArea(new Dimension(0, 30)));
+                centerPanel.add(Box.createRigidArea(new Dimension(0, 25)));
             } catch (Exception e) {
                 System.err.println("Error loading logo: " + e.getMessage());
             }
             
-            // Add about text
-            JLabel aboutTitle = new JLabel("About KwarTrack", SwingConstants.CENTER);
-            aboutTitle.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, UITheme.FONT_LARGE));
+            // Add about title
+            aboutTitle = new JLabel("About KwarTrack", SwingConstants.CENTER);
+            aboutTitle.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, 32));
             aboutTitle.setForeground(UITheme.TEXT_COLOR);
             aboutTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
             centerPanel.add(aboutTitle);
             
-            centerPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            centerPanel.add(Box.createRigidArea(new Dimension(0, 20)));
             
-            JLabel aboutDesc = new JLabel("Your personal finance tracker and manager", SwingConstants.CENTER);
-            aboutDesc.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, UITheme.FONT_MEDIUM));
+            // Add about description - multiline text that fits in panel
+            aboutDesc = new JLabel("<html><div style='text-align: center; width: 700px;'>" +
+                "KwarTrack is a simple, user-friendly budget and financial tracking system that helps " +
+                "individuals and students monitor their income, expenses, and savings in real time through desktop. " +
+                "Many individuals, especially students and young professionals, struggle with managing their finances " +
+                "due to a lack of proper tools, discipline, and visibility into their spending habits." +
+                "</div></html>", SwingConstants.CENTER);
+            aboutDesc.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, 24));
             aboutDesc.setForeground(UITheme.TEXT_COLOR);
             aboutDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
             centerPanel.add(aboutDesc);
@@ -108,8 +138,12 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
             // Bottom panel with back button
             JPanel bottom = panelFactory.createPanel();
             bottom.setOpaque(false);
+            bottom.setBorder(BorderFactory.createEmptyBorder(10, 10, 20, 10));
             JButton backButton = buttonFactory.createButton("Back");
-            backButton.addActionListener(e -> onBack.run());
+            backButton.addActionListener(e -> {
+                UITheme.removeThemeChangeListener(this);
+                onBack.run();
+            });
             bottom.add(backButton);
             add(bottom, BorderLayout.SOUTH);
         }
@@ -117,12 +151,25 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            
+            // Fill with PRIMARY_GREEN
+            g2d.setColor(UITheme.PRIMARY_GREEN);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // Draw background image if available
             if (aboutBackgroundImage != null) {
-                g.drawImage(aboutBackgroundImage, 0, 0, getWidth(), getHeight(), this);
-            } else {
-                g.setColor(UITheme.PRIMARY_GREEN);
-                g.fillRect(0, 0, getWidth(), getHeight());
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, 
+                                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2d.drawImage(aboutBackgroundImage, 0, 0, getWidth(), getHeight(), this);
             }
+        }
+        
+        @Override
+        public void onThemeChanged() {
+            aboutTitle.setForeground(UITheme.TEXT_COLOR);
+            aboutDesc.setForeground(UITheme.TEXT_COLOR);
+            repaint();
         }
         
         private void loadAboutBackgroundImage() {
@@ -137,30 +184,54 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
     }
 
     // ================= CONTACT PANEL (Inner Class) =================
-    class ContactPanel extends JPanel {
+    class ContactPanel extends JPanel implements UITheme.ThemeChangeListener {
         
         private Image contactBackgroundImage;
         private ImageIcon PICTURE_1;
         private ImageIcon PICTURE_2;
         private ImageIcon PICTURE_3;
+        private JButton themeToggleBtn;
+        private JLabel headerLabel;
         
         public ContactPanel(Runnable onBack) {
             loadContactBackgroundImage();
             loadProfileImages();
             setLayout(new BorderLayout());
             
+            UITheme.addThemeChangeListener(this);
+            
+            // Top panel with dark mode button
+            JPanel topPanelContact = panelFactory.createPanel(new BorderLayout());
+            topPanelContact.setOpaque(false);
+            topPanelContact.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            
+            JPanel darkModePanel = panelFactory.createFlowPanel(FlowLayout.RIGHT, 0, 0);
+            darkModePanel.setOpaque(false);
+            themeToggleBtn = buttonFactory.createThemeToggleButton();
+            themeToggleBtn.addActionListener(e -> {
+                Window window = SwingUtilities.getWindowAncestor(this);
+                if (window != null) {
+                    window.revalidate();
+                    window.repaint();
+                }
+            });
+            darkModePanel.add(themeToggleBtn);
+            topPanelContact.add(darkModePanel, BorderLayout.EAST);
+            
+            add(topPanelContact, BorderLayout.NORTH);
+            
             // Main container with GridBagLayout for centering
-            JPanel mainPanelInner = new JPanel(new GridBagLayout());
+            JPanel mainPanelInner = panelFactory.createPanel(new GridBagLayout());
             mainPanelInner.setOpaque(false);
             mainPanelInner.setBorder(BorderFactory.createEmptyBorder(30, 50, 30, 50));
             
             // Content container
-            JPanel contentPanelInner = new JPanel();
+            JPanel contentPanelInner = panelFactory.createPanel();
             contentPanelInner.setLayout(new BoxLayout(contentPanelInner, BoxLayout.Y_AXIS));
             contentPanelInner.setOpaque(false);
             
             // Header
-            JLabel headerLabel = new JLabel("CONTACT US");
+            headerLabel = new JLabel("CONTACT US");
             headerLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, 32));
             headerLabel.setForeground(UITheme.TEXT_COLOR);
             headerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -168,14 +239,14 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
             contentPanelInner.add(Box.createRigidArea(new Dimension(0, 40)));
             
             // Profile panel (horizontal layout for 3 profiles)
-            JPanel profilesPanel = new JPanel();
+            JPanel profilesPanel = panelFactory.createPanel();
             profilesPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 50, 0));
             profilesPanel.setOpaque(false);
             
             // Add three profiles
-            profilesPanel.add(createProfilePanel(PICTURE_1, "LANOHAN", "DYLAN ALPHONSO", "dlanohan@addu.edu.ph"));
-            profilesPanel.add(createProfilePanel(PICTURE_2, "SABANAL", "DAN CHARBILLE", "dsabanal@addu.edu.ph"));
-            profilesPanel.add(createProfilePanel(PICTURE_3, "NIEGAS", "NEIL JHON", "njbniehas@addu.edu.ph"));
+            profilesPanel.add(createProfilePanel(PICTURE_1, "LANOHAN,", "DYLAN ALPHONSO", "dlanohan@addu.edu.ph"));
+            profilesPanel.add(createProfilePanel(PICTURE_2, "SABANAL,", "DAN CHARBILLE DGRACE", "dsabanal@addu.edu.ph"));
+            profilesPanel.add(createProfilePanel(PICTURE_3, "NIEGAS,", "NEIL JHON", "njbniehas@addu.edu.ph"));
             
             contentPanelInner.add(profilesPanel);
             
@@ -185,14 +256,18 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
             // Bottom panel with back button
             JPanel bottom = panelFactory.createPanel();
             bottom.setOpaque(false);
+            bottom.setBorder(BorderFactory.createEmptyBorder(10, 10, 20, 10));
             JButton backButton = buttonFactory.createButton("Back");
-            backButton.addActionListener(e -> onBack.run());
+            backButton.addActionListener(e -> {
+                UITheme.removeThemeChangeListener(this);
+                onBack.run();
+            });
             bottom.add(backButton);
             add(bottom, BorderLayout.SOUTH);
         }
         
         private JPanel createProfilePanel(ImageIcon icon, String firstName, String lastName, String email) {
-            JPanel panel = new JPanel();
+            JPanel panel = panelFactory.createPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             panel.setOpaque(false);
             
@@ -217,7 +292,7 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
             // Name and email label
             JLabel nameLabel = new JLabel("<html><div style='text-align: center;'><b>" + 
                 firstName + "</b><br>" + lastName + "<br>" + email + "</div></html>");
-            nameLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, 14));
+            nameLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, 24));
             nameLabel.setForeground(UITheme.TEXT_COLOR);
             nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
             nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -230,11 +305,43 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            
+            // Fill with PRIMARY_GREEN
+            g2d.setColor(UITheme.PRIMARY_GREEN);
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // Draw background image if available
             if (contactBackgroundImage != null) {
-                g.drawImage(contactBackgroundImage, 0, 0, getWidth(), getHeight(), this);
-            } else {
-                g.setColor(UITheme.PRIMARY_GREEN);
-                g.fillRect(0, 0, getWidth(), getHeight());
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, 
+                                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2d.drawImage(contactBackgroundImage, 0, 0, getWidth(), getHeight(), this);
+            }
+        }
+        
+        @Override
+        public void onThemeChanged() {
+            headerLabel.setForeground(UITheme.TEXT_COLOR);
+            
+            // Update profile name labels
+            Component[] components = getComponents();
+            for (Component comp : components) {
+                if (comp instanceof JPanel) {
+                    updateProfileLabels((JPanel) comp);
+                }
+            }
+            
+            repaint();
+        }
+        
+        private void updateProfileLabels(JPanel panel) {
+            Component[] components = panel.getComponents();
+            for (Component comp : components) {
+                if (comp instanceof JLabel) {
+                    ((JLabel) comp).setForeground(UITheme.TEXT_COLOR);
+                } else if (comp instanceof JPanel) {
+                    updateProfileLabels((JPanel) comp);
+                }
             }
         }
         
@@ -282,7 +389,7 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
                 super.paintComponent(g);
                 Graphics2D g2d = (Graphics2D) g;
                 
-                // Fill with theme color
+                // Fill with PRIMARY_GREEN
                 g2d.setColor(UITheme.PRIMARY_GREEN);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
                 
@@ -301,11 +408,11 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
         topPanel.setOpaque(false);
 
         topNav = panelFactory.createFlowPanel(FlowLayout.RIGHT, 20, 10);
-        topNav.setBackground(UITheme.PANEL_BG);
+        topNav.setOpaque(false);
         topNav.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
-        // Navigation buttons
-        String[] navItems = {"Home", "About", "Contact"};
+        // Navigation buttons - REMOVED "Home", only About and Contact
+        String[] navItems = {"About", "Contact"};
         RoundedButtonFactory factory = (RoundedButtonFactory) buttonFactory;
         
         for (String item : navItems) {
@@ -316,6 +423,7 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
 
         // Dark mode button panel
         JPanel darkModePanel = panelFactory.createFlowPanel(FlowLayout.LEFT, 0, 0);
+        darkModePanel.setOpaque(false);
         darkModePanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 0));
         darkModePanel.add(buttonFactory.createThemeToggleButton());
 
@@ -331,7 +439,7 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
         contentPanel.add(Box.createVerticalStrut(100));
         
         JLabel logoLabel = new JLabel();
-        ImageIcon logoIcon = UITheme.getCachedLogo("/KTrack Logo.png", 180, 180);
+        ImageIcon logoIcon = UITheme.getCachedLogo("/KLOGO.png", 180, 180);
         if (logoIcon != null) {
             logoLabel.setIcon(logoIcon);
         } else {
@@ -352,7 +460,7 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
         
         contentPanel.add(Box.createVerticalStrut(20));
 
-        subtitle = new JLabel("Your personal finance tracker and manager", SwingConstants.CENTER);
+        subtitle = new JLabel("Your Personal Finance Tracker and Manager", SwingConstants.CENTER);
         subtitle.setForeground(UITheme.TEXT_COLOR);
         subtitle.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, UITheme.FONT_MEDIUM));
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -376,11 +484,6 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
     }
 
     private void handleNavigation(String item) {
-        if (item.equals("Home")) {
-            goBackToMain();
-            return;
-        }
-        
         mainPanel.removeAll();
         
         JPanel newPanel;
@@ -420,9 +523,6 @@ public class Landing extends JFrame implements UITheme.ThemeChangeListener {
     private void updateTheme() {
         if (mainPanel != null) {
             mainPanel.repaint();
-        }
-        if (topNav != null) {
-            topNav.setBackground(UITheme.PANEL_BG);
         }
         if (title != null) {
             title.setForeground(UITheme.TEXT_COLOR);
