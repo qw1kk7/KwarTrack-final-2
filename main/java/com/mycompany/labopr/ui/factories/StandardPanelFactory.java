@@ -62,6 +62,9 @@ public class StandardPanelFactory extends PanelFactory {
         return panel;
     }
     
+    public JPanel createRoundedPanel(Color bgColor, int cornerRadius) {
+    return new RoundedPanel(bgColor, cornerRadius);
+}
     /**
      * Custom JPanel with rounded corners
      */
