@@ -10,6 +10,8 @@ import com.mycompany.labopr.observer.PanelObserver;
 import com.mycompany.labopr.observer.Refreshable;
 import com.mycompany.labopr.ui.factories.ButtonFactory;
 import com.mycompany.labopr.ui.factories.PanelFactory;
+import com.mycompany.labopr.ui.composite.CompositePanel;
+import com.mycompany.labopr.ui.composite.MetricCardComponent;
 import com.mycompany.labopr.ui.theme.UITheme;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -19,6 +21,9 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
+/**
+ * DashboardPanel - REFACTORED to use Composite Pattern
+ */
 public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListener, Refreshable {
     
     private final DataFacade dataFacade;
@@ -28,12 +33,20 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     
     private String currentMonth;
     
-    private JLabel balanceValueLabel;
-    private JLabel incomeValueLabel;
-    private JLabel expensesValueLabel;
-    private JLabel savingsValueLabel;
+    // CHANGED: Now using Composite Pattern components
+    private MetricCardComponent balanceCard;
+    private MetricCardComponent incomeCard;
+    private MetricCardComponent expensesCard;
+    private MetricCardComponent savingsCard;
+    private CompositePanel overviewMetricsContainer;
+    
+    private MetricCardComponent monthlyIncomeCard;
+    private MetricCardComponent monthlyExpensesCard;
+    private MetricCardComponent monthlySavingsCard;
+    private MetricCardComponent savingsRateCard;
+    private CompositePanel analyticsMetricsContainer;
+    
     private JComboBox<String> monthSelector;
-    private JPanel metricsPanel;
     private JPanel chartsPanel;
     private JPanel topCategoriesPanel;
     private JTable recentTransactionsTable;
@@ -41,8 +54,8 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     private JLabel budgetStatusLabel;
     private JButton themeToggleBtn;
     private JScrollPane mainScrollPane;
-    private JPanel titlePanel; // FIXED: Store reference for background update
-    private JLabel dashboardTitleLabel; // FIXED: Store reference for text color
+    private JPanel titlePanel;
+    private JLabel dashboardTitleLabel;
     
     public DashboardPanel(JFrame parentFrame, DataFacade dataFacade, 
                          ButtonFactory buttonFactory, PanelFactory panelFactory) {
@@ -120,7 +133,6 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     }
     
     private JPanel createTitleSection() {
-        // FIXED: Store reference and set background based on theme
         titlePanel = panelFactory.createPanel(new BorderLayout());
         titlePanel.setBackground(UITheme.isDarkMode() ? Color.BLACK : UITheme.PRIMARY_GREEN);
         
@@ -163,20 +175,24 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1.0;
         
-        JPanel cardsContainer = panelFactory.createPanel(new GridLayout(1, 4, 15, 0));
-        cardsContainer.setOpaque(false);
+        // CHANGED: Create Composite container with metric cards
+        overviewMetricsContainer = new CompositePanel(new GridLayout(1, 4, 15, 0));
+        overviewMetricsContainer.setBackground(UITheme.isDarkMode() ? Color.BLACK : UITheme.PRIMARY_GREEN);
+        overviewMetricsContainer.setOpaque(false);
         
-        balanceValueLabel = new JLabel("₱0.00");
-        incomeValueLabel = new JLabel("₱0.00");
-        expensesValueLabel = new JLabel("₱0.00");
-        savingsValueLabel = new JLabel("₱0.00");
+        // Create metric card components
+        balanceCard = new MetricCardComponent("Current Balance", 0.0, new Color(0x7ed957));
+        incomeCard = new MetricCardComponent("Monthly Income", 0.0, new Color(0x4fc3f7));
+        expensesCard = new MetricCardComponent("Monthly Expenses", 0.0, new Color(0xe57373));
+        savingsCard = new MetricCardComponent("Monthly Savings", 0.0, new Color(0x66bb6a));
         
-        cardsContainer.add(createResponsiveOverviewCard("Current Balance", balanceValueLabel, new Color(0x7ed957)));
-        cardsContainer.add(createResponsiveOverviewCard("Monthly Income", incomeValueLabel, new Color(0x4fc3f7)));
-        cardsContainer.add(createResponsiveOverviewCard("Monthly Expenses", expensesValueLabel, new Color(0xe57373)));
-        cardsContainer.add(createResponsiveOverviewCard("Monthly Savings", savingsValueLabel, new Color(0x66bb6a)));
+        // Add cards to composite container
+        overviewMetricsContainer.addChild(balanceCard);
+        overviewMetricsContainer.addChild(incomeCard);
+        overviewMetricsContainer.addChild(expensesCard);
+        overviewMetricsContainer.addChild(savingsCard);
         
-        section.add(cardsContainer, gbc);
+        section.add(overviewMetricsContainer.getPanel(), gbc);
         
         gbc.gridy++;
         gbc.weighty = 0.0;
@@ -191,36 +207,6 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         section.add(statusPanel, gbc);
         
         return section;
-    }
-    
-    private JPanel createResponsiveOverviewCard(String title, JLabel valueLabel, Color accentColor) {
-        JPanel card = panelFactory.createPanel(Color.WHITE);
-        card.setLayout(new GridBagLayout());
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(accentColor, 2),
-            BorderFactory.createEmptyBorder(15, 10, 15, 10)
-        ));
-        
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 0, 10, 0);
-        
-        JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
-        titleLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, 13));
-        titleLabel.setForeground(Color.DARK_GRAY);
-        card.add(titleLabel, gbc);
-        
-        gbc.gridy++;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        valueLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, 20));
-        valueLabel.setForeground(accentColor);
-        valueLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(valueLabel, gbc);
-        
-        return card;
     }
     
     private JPanel createMonthSelectorSection() {
@@ -265,10 +251,24 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1.0;
         
-        metricsPanel = panelFactory.createPanel(new GridLayout(1, 4, 15, 0));
-        metricsPanel.setOpaque(false);
+        // CHANGED: Create Composite container with metric cards
+        analyticsMetricsContainer = new CompositePanel(new GridLayout(1, 4, 15, 0));
+        analyticsMetricsContainer.setBackground(UITheme.isDarkMode() ? Color.BLACK : UITheme.PRIMARY_GREEN);
+        analyticsMetricsContainer.setOpaque(false);
         
-        section.add(metricsPanel, gbc);
+        // Create metric card components
+        monthlyIncomeCard = new MetricCardComponent("Total Income", 0.0, new Color(0x7ed957), false);
+        monthlyExpensesCard = new MetricCardComponent("Total Expenses", 0.0, new Color(0xe57373), false);
+        monthlySavingsCard = new MetricCardComponent("Net Savings", 0.0, new Color(0x66bb6a), false);
+        savingsRateCard = new MetricCardComponent("Savings Rate", 0.0, new Color(0x66bb6a), true);
+        
+        // Add cards to composite container
+        analyticsMetricsContainer.addChild(monthlyIncomeCard);
+        analyticsMetricsContainer.addChild(monthlyExpensesCard);
+        analyticsMetricsContainer.addChild(monthlySavingsCard);
+        analyticsMetricsContainer.addChild(savingsRateCard);
+        
+        section.add(analyticsMetricsContainer.getPanel(), gbc);
         
         return section;
     }
@@ -352,8 +352,10 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         recentTransactionsTable.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, 14));
         recentTransactionsTable.setRowHeight(30);
         recentTransactionsTable.getTableHeader().setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, 14));
-        recentTransactionsTable.getTableHeader().setBackground(UITheme.BUTTON_BG);
-        recentTransactionsTable.getTableHeader().setForeground(UITheme.BUTTON_TEXT);
+        
+        updateTableHeaderColors();
+        
+        recentTransactionsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         recentTransactionsTable.setFillsViewportHeight(true);
         
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
@@ -393,10 +395,14 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     private void loadDashboardData() {
         DashboardData data = dataFacade.getDashboardData(currentMonth);
         
-        balanceValueLabel.setText("₱" + String.format("%,.2f", data.currentBalance));
-        incomeValueLabel.setText("₱" + String.format("%,.2f", data.monthlyIncome));
-        expensesValueLabel.setText("₱" + String.format("%,.2f", data.monthlyExpenses));
-        savingsValueLabel.setText("₱" + String.format("%,.2f", data.monthlySavings));
+        // CHANGED: Update metric cards using setValue()
+        balanceCard.setValue(data.currentBalance);
+        incomeCard.setValue(data.monthlyIncome);
+        expensesCard.setValue(data.monthlyExpenses);
+        savingsCard.setValue(data.monthlySavings);
+        
+        // Update composite (propagates to all children)
+        overviewMetricsContainer.update();
         
         if (data.isOverBudget) {
             budgetStatusLabel.setText("⚠️ Warning: You are over budget for this month");
@@ -422,57 +428,41 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
     private void loadAnalyticsData() {
         AnalyticsSummary analytics = dataFacade.getAnalyticsSummary(currentMonth);
         
-        metricsPanel.removeAll();
+        // CHANGED: Update metric cards and their colors dynamically
+        monthlyIncomeCard.setValue(analytics.totalIncome);
+        monthlyExpensesCard.setValue(analytics.totalExpenses);
         
-        metricsPanel.add(createResponsiveMetricCard("Total Income", analytics.totalIncome, new Color(0x7ed957), false));
-        metricsPanel.add(createResponsiveMetricCard("Total Expenses", analytics.totalExpenses, new Color(0xe57373), false));
-        
+        // Update savings card color based on value
         Color savingsColor = analytics.netSavings >= 0 ? new Color(0x66bb6a) : new Color(0xef5350);
-        metricsPanel.add(createResponsiveMetricCard("Net Savings", analytics.netSavings, savingsColor, false));
+        monthlySavingsCard = new MetricCardComponent("Net Savings", analytics.netSavings, savingsColor, false);
         
+        // Update savings rate card color based on value
         Color rateColor = analytics.savingsRate >= 0 ? new Color(0x66bb6a) : new Color(0xef5350);
-        metricsPanel.add(createResponsiveMetricCard("Savings Rate", analytics.savingsRate, rateColor, true));
+        savingsRateCard = new MetricCardComponent("Savings Rate", analytics.savingsRate, rateColor, true);
         
-        metricsPanel.revalidate();
-        metricsPanel.repaint();
+        // Rebuild the analytics container with updated cards
+        analyticsMetricsContainer.removeChild(monthlySavingsCard);
+        analyticsMetricsContainer.removeChild(savingsRateCard);
+        analyticsMetricsContainer.addChild(monthlySavingsCard);
+        analyticsMetricsContainer.addChild(savingsRateCard);
+        
+        // Update composite (propagates to all children)
+        analyticsMetricsContainer.update();
         
         loadCharts(analytics);
         loadTopCategories(analytics);
     }
     
-    private JPanel createResponsiveMetricCard(String label, double value, Color accentColor, boolean isPercentage) {
-        JPanel card = panelFactory.createPanel(Color.WHITE);
-        card.setLayout(new GridBagLayout());
-        card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(accentColor, 2),
-            BorderFactory.createEmptyBorder(15, 10, 15, 10)
-        ));
+    private void updateTableHeaderColors() {
+        boolean isDark = UITheme.isDarkMode();
         
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 0, 10, 0);
-        
-        JLabel labelText = new JLabel(label, SwingConstants.CENTER);
-        labelText.setFont(new Font(UITheme.FONT_FAMILY, Font.PLAIN, 13));
-        labelText.setForeground(Color.DARK_GRAY);
-        card.add(labelText, gbc);
-        
-        gbc.gridy++;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        
-        String valueText = isPercentage ? 
-            String.format("%.1f%%", value) : 
-            "₱" + String.format("%,.2f", value);
-        
-        JLabel valueLabel = new JLabel(valueText, SwingConstants.CENTER);
-        valueLabel.setFont(new Font(UITheme.FONT_FAMILY, Font.BOLD, 20));
-        valueLabel.setForeground(accentColor);
-        card.add(valueLabel, gbc);
-        
-        return card;
+        if (isDark) {
+            recentTransactionsTable.getTableHeader().setBackground(Color.BLACK);
+            recentTransactionsTable.getTableHeader().setForeground(Color.WHITE);
+        } else {
+            recentTransactionsTable.getTableHeader().setBackground(Color.WHITE);
+            recentTransactionsTable.getTableHeader().setForeground(Color.BLACK);
+        }
     }
     
     private void loadCharts(AnalyticsSummary analytics) {
@@ -571,17 +561,23 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
         
         setBackground(bgColor);
         
-        // FIXED: Update "Dashboard Overview" panel background
         if (titlePanel != null) {
             titlePanel.setBackground(bgColor);
         }
         
-        // FIXED: Update "Dashboard Overview" text color
         if (dashboardTitleLabel != null) {
             dashboardTitleLabel.setForeground(UITheme.TEXT_COLOR);
         }
         
-        // Update main scroll pane viewport
+        // Update composite containers background
+        if (overviewMetricsContainer != null) {
+            overviewMetricsContainer.setBackground(bgColor);
+        }
+        
+        if (analyticsMetricsContainer != null) {
+            analyticsMetricsContainer.setBackground(bgColor);
+        }
+        
         if (mainScrollPane != null) {
             mainScrollPane.getViewport().setBackground(bgColor);
             Component view = mainScrollPane.getViewport().getView();
@@ -590,17 +586,12 @@ public class DashboardPanel extends JPanel implements UITheme.ThemeChangeListene
             }
         }
         
-        // Update all section backgrounds (but NOT cards)
         updateSectionBackgrounds(this, bgColor);
-        
-        // Update text colors for section titles
         updateSectionTitleColors(this);
         
-        // Update table header
         recentTransactionsTable.getTableHeader().setBackground(UITheme.BUTTON_BG);
         recentTransactionsTable.getTableHeader().setForeground(UITheme.BUTTON_TEXT);
         
-        // Update budget status label color
         if (budgetStatusLabel.getText().contains("within")) {
             budgetStatusLabel.setForeground(isDark ? Color.WHITE : Color.BLACK);
         }
