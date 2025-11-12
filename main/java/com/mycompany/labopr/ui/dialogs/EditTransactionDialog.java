@@ -8,14 +8,17 @@ import com.mycompany.labopr.ui.theme.UITheme;
 
 import javax.swing.*;
 import java.awt.*;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Set;
 
 /**
- * Refactored EditTransactionDialog using DialogBuilder, ButtonFactory, and PanelFactory
- * Ensures consistency with TransactionDialog structure and UI
+ * Refactored EditTransactionDialog with amount validation against DECIMAL(15,2) maximum
  */
 public class EditTransactionDialog {
+    // Maximum value for DECIMAL(15,2): 13 integer digits + 2 decimal digits
+    private static final BigDecimal MAX_AMOUNT = new BigDecimal("9999999999999.99");
+    
     private final JFrame parent;
     private final String transactionType;
     private final String originalDate;
@@ -162,13 +165,28 @@ public class EditTransactionDialog {
             return;
         }
 
-        double amount;
+        BigDecimal amount;
         try {
-            amount = Double.parseDouble(amountText);
-            if (amount <= 0) {
+            amount = new BigDecimal(amountText);
+            
+            // Check if amount is positive
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                 JOptionPane.showMessageDialog(dialog, "Amount must be positive.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+            
+            // VALIDATION: Check if amount exceeds database maximum
+            if (amount.compareTo(MAX_AMOUNT) > 0) {
+                JOptionPane.showMessageDialog(
+                    dialog,
+                    "The amount entered exceeds the maximum allowed value (₱9,999,999,999,999.99) and cannot be saved.\n\n" +
+                    "Please enter a smaller amount.",
+                    "Amount Too Large",
+                    JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+            
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(dialog, "Invalid amount format.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -196,7 +214,7 @@ public class EditTransactionDialog {
         String comment = commentArea.getText().trim();
 
         updatedTransaction = new TransactionData.Transaction(
-                transactionType, date, category, amount, comment
+                transactionType, date, category, amount.doubleValue(), comment
         );
 
         confirmed = true;
